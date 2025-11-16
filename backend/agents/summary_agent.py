@@ -10,7 +10,8 @@ class SummaryAgent:
         self.llm = YandexGPT(
             api_key=Config.YANDEX_API_KEY,
             folder_id=Config.YANDEX_FOLDER_ID,
-            max_tokens=1000
+            max_tokens=1000,
+            model_uri=Config.YANDEX_GPT_MODEL_URI
         )
         
         self.summary_prompt = """

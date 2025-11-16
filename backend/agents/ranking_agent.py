@@ -13,7 +13,8 @@ class RankingAgent:
         self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
         self.llm = YandexGPT(
             api_key=Config.YANDEX_API_KEY,
-            folder_id=Config.YANDEX_FOLDER_ID
+            folder_id=Config.YANDEX_FOLDER_ID,
+            model_uri=Config.YANDEX_GPT_MODEL_URI
         )
     
     def rank_bm25(self, papers: List[Dict], query: str, top_k: int = 50) -> List[Dict]:

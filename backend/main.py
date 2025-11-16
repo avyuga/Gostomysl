@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import json
 from workflow import ResearchWorkflow
+import traceback
+import datetime
 
 app = FastAPI()
 
@@ -57,14 +59,20 @@ async def research_websocket(websocket: WebSocket):
                 "status": "Searching ArXiv..."
             })
             state = await workflow.search_papers_node(state)
-            await websocket.send_json({
+
+            def datetime_converter(o):
+                if isinstance(o, datetime.datetime):
+                    return o.isoformat()
+                raise TypeError("Type not serializable")
+
+            await websocket.send_json(json.loads(json.dumps({
                 "stage": "searching",
                 "status": "Complete",
                 "data": {
                     "count": len(state.get('raw_papers', [])),
                     "papers": state.get('raw_papers', [])[:5]  # Send first 5 for preview
                 }
-            })
+            }, default=datetime_converter)))
             
             # Rank papers
             await websocket.send_json({
@@ -72,13 +80,13 @@ async def research_websocket(websocket: WebSocket):
                 "status": "Ranking papers..."
             })
             state = await workflow.rank_papers_node(state)
-            await websocket.send_json({
+            await websocket.send_json(json.loads(json.dumps({
                 "stage": "ranking",
                 "status": "Complete",
                 "data": {
                     "top_papers": state.get('ranked_papers', [])[:5]
                 }
-            })
+            }, default=datetime_converter)))
             
             # Summarize papers
             await websocket.send_json({
@@ -140,16 +148,18 @@ async def research_websocket(websocket: WebSocket):
             })
             
             # Send final result
-            await websocket.send_json({
+            await websocket.send_json(json.loads(json.dumps({
                 "stage": "complete",
                 "status": "Research complete",
                 "data": {
                     "document": state.get('final_document'),
                     "papers": state.get('filtered_papers')
                 }
-            })
+            }, default=datetime_converter)))
             
     except Exception as e:
+        tb_str = traceback.format_exc()
+        print(tb_str, flush=True)
         await websocket.send_json({
             "stage": "error",
             "status": str(e)

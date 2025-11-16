@@ -1,5 +1,5 @@
 from typing import List, Dict
-from langchain.prompts import PromptTemplate
+from langchain_core.prompts.prompt import PromptTemplate
 from models.yandex_llm import YandexGPT
 from config import Config
 
@@ -9,7 +9,8 @@ class QueryAgent:
     def __init__(self):
         self.llm = YandexGPT(
             api_key=Config.YANDEX_API_KEY,
-            folder_id=Config.YANDEX_FOLDER_ID
+            folder_id=Config.YANDEX_FOLDER_ID,
+            model_uri=Config.YANDEX_GPT_MODEL_URI
         )
         
         self.query_enhancement_prompt = PromptTemplate(
@@ -21,7 +22,7 @@ class QueryAgent:
             Язык запроса: {language}
             
             Сгенерируй 3-5 улучшенных вариантов запроса для поиска научных статей на ArXiv.
-            Включи синонимы, связанные термины и английские переводы если нужно.
+            Включи синонимы, связанные термины и английские переводы.
             
             Формат ответа (JSON):
             {{
@@ -45,8 +46,9 @@ class QueryAgent:
         
         try:
             import json
-            result = json.loads(response)
-        except:
+            result = json.loads(response.strip('```'))
+        except Exception as e:
+            print('process query died', str(e), flush=True)
             # Fallback if JSON parsing fails
             result = {
                 "enhanced_queries": [user_query],

@@ -8,6 +8,7 @@ class Config:
     YANDEX_API_KEY = os.getenv("YANDEX_API_KEY")
     YANDEX_FOLDER_ID = os.getenv("YANDEX_FOLDER_ID")
     YANDEX_GPT_MODEL = "yandexgpt-lite"
+    YANDEX_GPT_MODEL_URI = f"gpt://{YANDEX_FOLDER_ID}/{YANDEX_GPT_MODEL}"
     
     # ArXiv settings
     ARXIV_MAX_RESULTS = 100

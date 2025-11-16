@@ -10,7 +10,8 @@ class AnalysisAgent:
         self.llm = YandexGPT(
             api_key=Config.YANDEX_API_KEY,
             folder_id=Config.YANDEX_FOLDER_ID,
-            max_tokens=3000
+            max_tokens=3000,
+            model_uri=Config.YANDEX_GPT_MODEL_URI
         )
     
     async def create_analysis_plan(self, papers: List[Dict], query: str) -> Dict:

@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 
 st.set_page_config(
-    page_title="ArXiv Research System",
+    page_title="Гостомысл",
     page_icon="🔬",
     layout="wide"
 )
@@ -30,7 +30,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🔬 ArXiv Research System")
+st.title("🔬 Гостомысл Research System")
 st.markdown("### Многоагентная система поиска и анализа научных статей")
 
 # Sidebar
@@ -84,7 +84,7 @@ with col1:
             
             async def run_research():
                 try:
-                    async with websockets.connect(api_url) as websocket:
+                    async with websockets.connect(api_url, ping_timeout=180) as websocket:
                         # Send query
                         await websocket.send(json.dumps({"query": query}))
                         
@@ -99,6 +99,7 @@ with col1:
                             if stage in stages:
                                 # Update stage status
                                 if status == "Complete":
+                                    print(stage, status, flush=True)
                                     stages[stage]["status"] = "complete"
                                     stage_placeholders[stage].success(
                                         f"✅ {stages[stage]['name']}: Завершено"
@@ -108,23 +109,31 @@ with col1:
                                     if "data" in data:
                                         with st.expander(f"Результаты: {stages[stage]['name']}"):
                                             if stage == "query_processing":
+                                                print(stage, data, flush=True)
                                                 st.json(data["data"])
                                             elif stage == "searching":
+                                                print(stage, data, flush=True)
                                                 st.metric("Найдено статей", data["data"]["count"])
                                             elif stage == "ranking":
+                                                print(stage, data, flush=True)
                                                 for paper in data["data"]["top_papers"][:3]:
                                                     st.write(f"📄 {paper['title']}")
                                             elif stage == "summarizing":
+                                                print(stage, data, flush=True)
                                                 for item in data["data"]["summaries"]:
                                                     st.write(f"**{item['title']}**")
                                                     st.write(item['summary'])
                                             elif stage == "filtering":
+                                                print(stage, data, flush=True)
                                                 st.metric("Релевантных статей", data["data"]["relevant_count"])
                                             elif stage == "analysis":
+                                                print(stage, data, flush=True)
                                                 st.json(data["data"]["plan"])
                                 
                                 else:
+                                    print(stage, flush=True)
                                     stages[stage]["status"] = "active"
+                                    print(stage, status, flush=True)
                                     stage_placeholders[stage].info(
                                         f"⏳ {stages[stage]['name']}: {status}"
                                     )

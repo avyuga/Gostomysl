@@ -10,11 +10,11 @@ from yandexcloud import SDK
 class YandexGPT(LLM):
     """YandexGPT LLM wrapper for LangChain"""
     
-    api_key: str = Field(...)
-    folder_id: str = Field(...)
-    model_uri: str = Field(default="gpt://b1g.../yandexgpt-lite")
-    temperature: float = Field(default=0.7)
-    max_tokens: int = Field(default=2000)
+    api_key: str
+    folder_id: str
+    model_uri: str
+    temperature: float = 0.7
+    max_tokens: int = 2000
     
     @property
     def _llm_type(self) -> str:
