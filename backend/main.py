@@ -1,11 +1,12 @@
-from fastapi import FastAPI, WebSocket
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
 import asyncio
-import json
-from workflow import ResearchWorkflow
-import traceback
 import datetime
+import json
+import logging
+import traceback
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from workflow import ResearchWorkflow
 
 app = FastAPI()
 
@@ -31,7 +32,7 @@ async def research_websocket(websocket: WebSocket):
     try:
         while True:
             # Receive query from client
-            data = await websocket.receive_text()
+            data = await asyncio.wait_for(websocket.receive_text(), timeout=120)
             query_data = json.loads(data)
             user_query = query_data['query']
             
@@ -41,6 +42,7 @@ async def research_websocket(websocket: WebSocket):
                 'status': 'Started'
             }
             
+
             # Process query
             await websocket.send_json({
                 "stage": "query_processing",
@@ -52,6 +54,7 @@ async def research_websocket(websocket: WebSocket):
                 "status": "Complete",
                 "data": state.get('enhanced_queries')
             })
+
             
             # Search papers
             await websocket.send_json({
@@ -74,6 +77,7 @@ async def research_websocket(websocket: WebSocket):
                 }
             }, default=datetime_converter)))
             
+
             # Rank papers
             await websocket.send_json({
                 "stage": "ranking",
@@ -88,6 +92,7 @@ async def research_websocket(websocket: WebSocket):
                 }
             }, default=datetime_converter)))
             
+
             # Summarize papers
             await websocket.send_json({
                 "stage": "summarizing",
@@ -102,34 +107,6 @@ async def research_websocket(websocket: WebSocket):
                         {"title": p['title'], "summary": p.get('ru_summary', '')[:200]}
                         for p in state.get('summarized_papers', [])[:3]
                     ]
-                }
-            })
-            
-            # Filter papers
-            await websocket.send_json({
-                "stage": "filtering",
-                "status": "Filtering relevant papers..."
-            })
-            state = await workflow.filter_papers_node(state)
-            await websocket.send_json({
-                "stage": "filtering",
-                "status": "Complete",
-                "data": {
-                    "relevant_count": len(state.get('filtered_papers', []))
-                }
-            })
-            
-            # Create analysis
-            await websocket.send_json({
-                "stage": "analysis",
-                "status": "Creating domain analysis..."
-            })
-            state = await workflow.create_analysis_node(state)
-            await websocket.send_json({
-                "stage": "analysis",
-                "status": "Complete",
-                "data": {
-                    "plan": state.get('analysis_plan')
                 }
             })
             
@@ -156,7 +133,11 @@ async def research_websocket(websocket: WebSocket):
                     "papers": state.get('filtered_papers')
                 }
             }, default=datetime_converter)))
-            
+
+    except WebSocketDisconnect as e:
+        # Нормальное закрытие вебсокета
+        logging.info(f"WebSocket connection closed normally with code {e.code}.")
+
     except Exception as e:
         tb_str = traceback.format_exc()
         print(tb_str, flush=True)
@@ -165,7 +146,10 @@ async def research_websocket(websocket: WebSocket):
             "status": str(e)
         })
     finally:
-        await websocket.close()
+        try:
+            await websocket.close()
+        except Exception as e:
+            logging.info(f"Could not close Websocket with exception {e}.")
 
 if __name__ == "__main__":
     import uvicorn

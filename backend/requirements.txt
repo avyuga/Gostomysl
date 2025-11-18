@@ -13,3 +13,7 @@ beautifulsoup4
 sentence-transformers
 yandexcloud
 websockets
+PyMuPDF
+aiopath
+aiofiles
+aiohttp

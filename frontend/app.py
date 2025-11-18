@@ -49,139 +49,120 @@ with st.sidebar:
     """)
 
 # Main interface
-col1, col2 = st.columns([2, 1])
+query = st.text_area(
+    "Введите запрос для поиска",
+    placeholder="Например: машинное обучение для обработки естественного языка",
+    height=100
+)
 
-with col1:
-    query = st.text_area(
-        "Введите запрос для поиска",
-        placeholder="Например: машинное обучение для обработки естественного языка",
-        height=100
-    )
-    
-    if st.button("🔍 Начать исследование", type="primary"):
-        if query:
-            # Progress tracking
-            progress_container = st.container()
-            
-            # Stage indicators
-            stages = {
-                "query_processing": {"name": "Обработка запроса", "status": "pending"},
-                "searching": {"name": "Поиск в ArXiv", "status": "pending"},
-                "ranking": {"name": "Ранжирование", "status": "pending"},
-                "summarizing": {"name": "Суммаризация", "status": "pending"},
-                "filtering": {"name": "Фильтрация", "status": "pending"},
-                "analysis": {"name": "Анализ области", "status": "pending"},
-                "formatting": {"name": "Форматирование", "status": "pending"}
-            }
-            
-            # Create placeholders for each stage
-            stage_placeholders = {}
-            for stage_id, stage_info in stages.items():
-                stage_placeholders[stage_id] = st.empty()
-            
-            # Results placeholders
-            results_placeholder = st.empty()
-            
-            async def run_research():
-                try:
-                    async with websockets.connect(api_url, ping_timeout=180) as websocket:
-                        # Send query
-                        await websocket.send(json.dumps({"query": query}))
+if st.button("🔍 Начать исследование", type="primary"):
+    if query:
+        # Progress tracking
+        progress_container = st.container()
+        
+        # Stage indicators
+        stages = {
+            "query_processing": {"name": "Обработка запроса", "status": "pending"},
+            "searching": {"name": "Поиск в ArXiv", "status": "pending"},
+            "ranking": {"name": "Ранжирование", "status": "pending"},
+            "summarizing": {"name": "Суммаризация", "status": "pending"},
+            "formatting": {"name": "Форматирование", "status": "pending"}
+        }
+        
+        # Create placeholders for each stage
+        stage_placeholders = {}
+        for stage_id, stage_info in stages.items():
+            stage_placeholders[stage_id] = st.empty()
+        
+        # Results placeholders
+        results_placeholder = st.empty()
+        
+        async def run_research():
+            try:
+                async with websockets.connect(api_url, ping_timeout=180) as websocket:
+                    # Send query
+                    await websocket.send(json.dumps({"query": query}))
+                    
+                    # Receive updates
+                    while True:
+                        message = await asyncio.wait_for(websocket.recv(), timeout=120)
+                        data = json.loads(message)
                         
-                        # Receive updates
-                        while True:
-                            message = await websocket.recv()
-                            data = json.loads(message)
-                            
-                            stage = data.get("stage")
-                            status = data.get("status")
-                            
-                            if stage in stages:
-                                # Update stage status
-                                if status == "Complete":
-                                    print(stage, status, flush=True)
-                                    stages[stage]["status"] = "complete"
-                                    stage_placeholders[stage].success(
-                                        f"✅ {stages[stage]['name']}: Завершено"
-                                    )
-                                    
-                                    # Show stage data
-                                    if "data" in data:
-                                        with st.expander(f"Результаты: {stages[stage]['name']}"):
-                                            if stage == "query_processing":
+                        stage = data.get("stage")
+                        status = data.get("status")
+                        
+                        if stage in stages:
+                            # Update stage status
+                            if status == "Complete":
+                                print(stage, status, flush=True)
+                                stages[stage]["status"] = "complete"
+                                stage_placeholders[stage].success(
+                                    f"✅ {stages[stage]['name']}: Завершено"
+                                )
+                                
+                                # Show stage data
+                                if "data" in data and stage != 'formatting':
+                                    with st.expander(f"Результаты: {stages[stage]['name']}"):
+                                        match stage:
+                                            case "query_processing":
                                                 print(stage, data, flush=True)
                                                 st.json(data["data"])
-                                            elif stage == "searching":
+                                            case "searching":
                                                 print(stage, data, flush=True)
                                                 st.metric("Найдено статей", data["data"]["count"])
-                                            elif stage == "ranking":
+                                            case "ranking":
                                                 print(stage, data, flush=True)
                                                 for paper in data["data"]["top_papers"][:3]:
                                                     st.write(f"📄 {paper['title']}")
-                                            elif stage == "summarizing":
+                                            case "summarizing":
                                                 print(stage, data, flush=True)
                                                 for item in data["data"]["summaries"]:
                                                     st.write(f"**{item['title']}**")
-                                                    st.write(item['summary'])
-                                            elif stage == "filtering":
-                                                print(stage, data, flush=True)
-                                                st.metric("Релевантных статей", data["data"]["relevant_count"])
-                                            elif stage == "analysis":
-                                                print(stage, data, flush=True)
-                                                st.json(data["data"]["plan"])
-                                
-                                else:
-                                    print(stage, flush=True)
-                                    stages[stage]["status"] = "active"
-                                    print(stage, status, flush=True)
-                                    stage_placeholders[stage].info(
-                                        f"⏳ {stages[stage]['name']}: {status}"
-                                    )
+                                                    st.write(item['summary'])      
                             
-                            elif stage == "complete":
-                                # Show final results
-                                results_placeholder.success("🎉 Исследование завершено!")
-                                
-                                # Display document
-                                st.markdown("---")
-                                st.markdown("## 📄 Результат анализа")
-                                
-                                document = data["data"]["document"]
-                                
-                                # Create download button
-                                st.download_button(
-                                    label="📥 Скачать документ",
-                                    data=document,
-                                    file_name=f"research_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
-                                    mime="text/markdown"
+                            else:
+                                print(stage, flush=True)
+                                stages[stage]["status"] = "active"
+                                print(stage, status, flush=True)
+                                stage_placeholders[stage].info(
+                                    f"⏳ {stages[stage]['name']}: {status}"
                                 )
-                                
-                                # Display document
-                                st.markdown(document)
-                                
-                                break
+                        
+                        elif stage == "complete":
+                            # Show final results
+                            results_placeholder.success("🎉 Исследование завершено!")
                             
-                            elif stage == "error":
-                                st.error(f"Ошибка: {status}")
-                                break
-                
-                except Exception as e:
-                    st.error(f"Ошибка подключения: {str(e)}")
+                            # Display document
+                            st.markdown("---")
+                            st.markdown("## 📄 Результат анализа")
+                            
+                            document = data["data"]["document"]
+                            
+                            # Create download button
+                            st.download_button(
+                                label="📥 Скачать документ",
+                                data=document,
+                                file_name=f"research_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                                mime="text/markdown"
+                            )
+                            
+                            # Display document
+                            st.markdown(document)
+                            
+                            break
+                        
+                        elif stage == "error":
+                            st.error(f"Ошибка: {status}")
+                            break
             
-            # Run async function
-            asyncio.run(run_research())
-        else:
-            st.warning("Пожалуйста, введите запрос")
+            except Exception as e:
+                st.error(f"Ошибка подключения: {str(e)}")
+        
+        # Run async function
+        asyncio.run(run_research())
+    else:
+        st.warning("Пожалуйста, введите запрос")
 
-with col2:
-    st.markdown("### 📊 Статистика")
-    
-    # Placeholder for statistics
-    stats_container = st.container()
-    with stats_container:
-        st.metric("Всего обработано", "0")
-        st.metric("Время выполнения", "0 сек")
-        st.metric("Использовано токенов", "0")
 
 # Footer
 st.markdown("---")

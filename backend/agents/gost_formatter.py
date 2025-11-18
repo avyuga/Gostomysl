@@ -53,12 +53,9 @@ class GOSTFormatter:
         return bibliography
     
     @staticmethod
-    def format_full_document(analysis: str, papers: List[Dict]) -> str:
-        """Format complete document with analysis and bibliography"""
-        
-        document = analysis
-        document += "\n\n"
-        document += GOSTFormatter.format_bibliography(papers)
+    def format_full_document(papers: List[Dict]) -> str:
+        """Format bibliography"""
+        document = GOSTFormatter.format_bibliography(papers)
         
         # Add metadata
         metadata = f"""
